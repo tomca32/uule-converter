@@ -7,7 +7,7 @@ authors = ["Tomislav Pesut <t@tomislav.io>"]
 readme = "README.md"
 repository = "https://github.com/tomca32/uule-converter"
 license = "MIT"
-keywords = ["uule", "google", "uule v1", "uule v2", "encoder", "decoder"]
+keywords = ["uule", "encoder", "decoder"]
 categories = ["encoding"]
 exclude = [".github"]
 
