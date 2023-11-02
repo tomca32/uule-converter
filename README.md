@@ -25,6 +25,8 @@ assert_eq!(uule, Uulev2Data { role: 1, producer: 12, provenance: 6, timestamp: 1
 
 Inspired by <https://valentin.app/uule.html>
 
-Prior art:
+### Prior art:
+
 UULEv1 in Python: <https://github.com/ogun/uule_grabber>
+
 UULEv2 in Ruby: <https://github.com/serpapi/uule_converter>
