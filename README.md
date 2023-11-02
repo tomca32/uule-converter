@@ -22,3 +22,9 @@ assert_eq!(encoded, "a+cm9sZToxCnByb2R1Y2VyOjEyCnByb3ZlbmFuY2U6Ngp0aW1lc3RhbXA6M
 let uule = Uulev2Data::decode(&encoded).unwrap();
 assert_eq!(uule, Uulev2Data { role: 1, producer: 12, provenance: 6, timestamp: 1591521249034000, lat: 37.4210000, long: -12.2084000, radius: -1 });
 ```
+
+Inspired by <https://valentin.app/uule.html>
+
+Prior art:
+UULEv1 in Python: <https://github.com/ogun/uule_grabber>
+UULEv2 in Ruby: <https://github.com/serpapi/uule_converter>
