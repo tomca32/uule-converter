@@ -5,16 +5,22 @@ type Uulev2 = String;
 
 /// Uulev2Data is a struct that represents the data encoded in a UULEv2 string.
 /// The meaning of most of the fields is unclear and is not documented.
-/// Read more about this at: https://valentin.app/uule.html
+/// Read more about this at: <https://valentin.app/uule.html>
 ///
 /// Probably the only interesting fields are lat, long, and possibly radius.
 ///
 /// Role - Some sort of role of the data. Default value is 1 meaning USER_SPECIFIED_FOR_REQUEST
+///
 /// Producer - Some sort of producer of the data. Default value is 12 meaning LOGGED_IN_USER_SPECIFIED
+///
 /// Provenance - Unknown. Default value is 0
+///
 /// Timestamp - Unix timestamp in milliseconds. Default value is the current time
+///
 /// Lat - Latitude in degrees. Default value is 0.0
+///
 /// Long - Longitude in degrees. Default value is 0.0
+///
 /// Radius - Supposedly the radius of the location in meters. Some experimentation showed that this is actually meters times 620. Default value of 1 means exact location of latlong.
 ///
 /// # Examples
