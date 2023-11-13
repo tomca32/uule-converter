@@ -1,7 +1,8 @@
 use std::{fmt::Display, time::SystemTime};
 use crate::{latlong, consts::{USER_SPECIFIED_FOR_REQUEST, LOGGED_IN_USER_SPECIFIED}};
 
-type Uulev2 = String;
+/// type alias for UULEv2 strings
+pub type Uulev2 = String;
 
 /// Uulev2Data is a struct that represents the data encoded in a UULEv2 string.
 /// The meaning of most of the fields is unclear and is not documented.

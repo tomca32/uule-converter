@@ -1,5 +1,8 @@
 use crate::consts::{UULEV1_ROLE, UULEV1_PRODUCER};
 
+/// type alias for UULEv1 strings
+pub type Uulev1 = String;
+
 /// Uulev1Data is a struct that represents the data encoded in a UULEv1 string.
 /// The meaning of most of the fields is unclear and is not documented.
 /// Read more about this at: <https://valentin.app/uule.html>
@@ -35,7 +38,7 @@ impl Uulev1Data {
         Self { role: UULEV1_ROLE, producer: UULEV1_PRODUCER, canonical_name: place }
     }
 
-    pub fn encode(&self) -> String {
+    pub fn encode(&self) -> Uulev1 {
         let mut name_bytes = self.canonical_name.as_bytes().to_vec();
         let mut bytes: Vec<u8> = vec![8, self.role, 16, self.producer, 34, self.canonical_name.len() as u8];
         bytes.append(&mut name_bytes);
