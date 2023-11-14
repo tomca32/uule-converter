@@ -157,30 +157,28 @@ impl Uulev2Data {
     }
 
     fn parse_int_line<T>(line: Option<&str>, field: &str) -> Result<T, Uulev2Error> where T: FromStr::<Err=std::num::ParseIntError> {
-        Uulev2Data::get_field_value(line, field)?.parse::<T>().map_err(|e| Uulev2Error::InvalidIntegerValue { source: e })
+        let line = line.ok_or_else(|| Uulev2Error::UnexpectedEnd(field.to_string()))?;
+        if !line.starts_with(field) {
+            return Err(Uulev2Error::UnexpectedLine {expected: field.to_string(), actual: line.to_string()});
+        }
+        let value = line.split(':').nth(1).ok_or_else(|| Uulev2Error::MissingValue(field.to_owned()))?;
+
+        value.parse::<T>().map_err(|e| Uulev2Error::InvalidIntegerValue { source: e })
     }
 
     fn parse_lat_long(lines: &mut Lines) -> Result<(f64, f64), Uulev2Error> {
         let line = lines.next().ok_or_else(|| Uulev2Error::UnexpectedEnd("latlng{".to_string()))?;
         if line != "latlng{" {
-            return Err(Uulev2Error::UnexpectedLine{expected: "latlng{".to_string(), actual: line.to_string()});
+            return Err(Uulev2Error::UnexpectedLine {expected: "latlng{".to_string(), actual: line.to_string()});
         }
         let lat: f64 = latlong::latlong_from_e7(Uulev2Data::parse_int_line(lines.next(), "latitude_e7")?);
         let long: f64 = latlong::latlong_from_e7(Uulev2Data::parse_int_line(lines.next(), "longitude_e7")?);
         let line = lines.next().ok_or_else(|| Uulev2Error::UnexpectedEnd("}".to_string()))?;
         if line != "}" {
-            return Err(Uulev2Error::UnexpectedLine{expected: "}".to_string(), actual: line.to_string()});
+            return Err(Uulev2Error::UnexpectedLine {expected: "}".to_string(), actual: line.to_string()});
         }
 
         Ok((lat, long))
-    }
-
-    fn get_field_value<'a>(line: Option<&'a str>, field: &str) -> Result<&'a str, Uulev2Error> {
-        let line = line.ok_or_else(|| Uulev2Error::UnexpectedEnd(field.to_string()))?;
-        if !line.starts_with(field) {
-            return Err(Uulev2Error::UnexpectedLine{expected: field.to_string(), actual: line.to_string()});
-        }
-        line.split(':').nth(1).ok_or_else(|| Uulev2Error::MissingValue(field.to_owned()))
     }
 }
 
