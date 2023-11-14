@@ -36,9 +36,6 @@ pub type Uulev1 = String;
 ///
 /// let uule = Uulev1Data::decode("w+CAIQICIkUXVlZW5zIENvdW50eSxOZXcgWW9yayxVbml0ZWQgU3RhdGVz ").unwrap_err(); // trailing whitespace makes it invalid base64
 /// assert_eq!(uule, Uulev1Error::Base64DecodingError { source: base64::DecodeError::InvalidByte(56, 32) });
-///
-/// let uule = Uulev1Data::decode("w+CAIQICIkUXVlZW5zIENvdW50eSxOZXcgWW9yayxVbml0ZWQgU3RhdGVz").unwrap_err(); // trailing whitespace
-/// assert_eq!(uule, Uulev1Error::Base64DecodingError { source: base64::DecodeError::InvalidByte(56, 32) });
 /// ```
 #[derive(Debug, PartialEq, Clone)]
 pub struct Uulev1Data {
@@ -74,7 +71,7 @@ impl Uulev1Data {
 }
 
 /// Uulev1Error is an enum that represents the possible errors that can occur when decoding a UULEv1 string.
-#[derive(Error, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Error)]
 pub enum Uulev1Error {
     /// Invalid prefix. UULEv1 strings must start with 'w+'. Received string is accessible as `error.0`
     #[error("Invalid prefix. UULEv1 strings must start with 'w+'. Received: {0}")]

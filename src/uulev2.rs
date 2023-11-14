@@ -1,4 +1,7 @@
-use std::{fmt::Display, time::SystemTime};
+use std::{fmt::Display, time::SystemTime, str::{FromStr, Lines}};
+use base64_url::base64;
+use thiserror::Error;
+
 use crate::{latlong, consts::{USER_SPECIFIED_FOR_REQUEST, LOGGED_IN_USER_SPECIFIED}};
 
 /// type alias for UULEv2 strings
@@ -28,6 +31,7 @@ pub type Uulev2 = String;
 ///
 /// ```
 /// use uule_converter::uulev2::Uulev2Data;
+/// use uule_converter::uulev2::Uulev2Error;
 ///
 /// // Constructing a Uulev2Data object with a builder like pattern
 /// let uule = Uulev2Data::default().with_lat(37.4210000).with_long(-12.2084000).with_radius(6200);
@@ -45,6 +49,11 @@ pub type Uulev2 = String;
 ///
 /// // The decoded object is the same as the original object
 /// assert_eq!(uule, Uulev2Data { role: 1, producer: 12, provenance: 6, timestamp: 1591521249034000, lat: 37.4210000, long: -12.2084000, radius: -1 });
+///
+/// let error = Uulev2Data::decode("asdf").unwrap_err();
+/// assert_eq!(error, Uulev2Error::InvalidPrefix("asdf".to_string()));
+///
+///
 /// ```
 #[derive(Debug, PartialEq, Clone)]
 pub struct Uulev2Data {
@@ -120,64 +129,23 @@ impl Uulev2Data {
         format!("a+{}", base64_url::encode(&self.to_string()))
     }
 
-    pub fn decode(input: &str) -> Option<Uulev2Data> {
+    pub fn decode(input: &str) -> Result<Uulev2Data, Uulev2Error> {
+        if !input.starts_with("a+") {
+            return Err(Uulev2Error::InvalidPrefix(input.to_string()));
+        }
         let input = input.trim_start_matches("a+");
         let decoded = base64_url::decode(input).unwrap();
         let decoded = String::from_utf8(decoded).unwrap();
         let mut lines = decoded.lines();
-        let line = lines.next()?;
-        if !line.starts_with("role:") {
-            return None;
-        }
-        let role = line.split(':').nth(1)?.parse::<u8>().ok()?;
 
-        let line = lines.next()?;
-        if !line.starts_with("producer:") {
-            return None;
-        }
-        let producer = line.split(':').nth(1)?.parse::<u8>().ok()?;
+        let role: u8 = Uulev2Data::parse_int_line(lines.next(), "role")?;
+        let producer: u8 = Uulev2Data::parse_int_line(lines.next(), "producer")?;
+        let provenance: i32 = Uulev2Data::parse_int_line(lines.next(), "provenance")?;
+        let timestamp: u128 = Uulev2Data::parse_int_line(lines.next(), "timestamp")?;
+        let (lat, long): (f64, f64) = Uulev2Data::parse_lat_long(&mut lines)?;
+        let radius: i32 = Uulev2Data::parse_int_line(lines.next(), "radius")?;
 
-        let line = lines.next()?;
-        if !line.starts_with("provenance:") {
-            return None;
-        }
-        let provenance = line.split(':').nth(1)?.parse::<i32>().ok()?;
-
-        let line = lines.next()?;
-        if !line.starts_with("timestamp:") {
-            return None;
-        }
-        let timestamp = line.split(':').nth(1)?.parse::<u128>().ok()?;
-
-        let line = lines.next()?;
-        if !line.starts_with("latlng{") {
-            return None;
-        }
-        let line = lines.next()?;
-        if !line.starts_with("latitude_e7:") {
-            return None;
-        }
-        let lat = line.split(':').nth(1)?.parse::<i64>().ok()?;
-        let lat = latlong::latlong_from_e7(lat);
-
-        let line = lines.next()?;
-        if !line.starts_with("longitude_e7:") {
-            return None;
-        }
-        let long = line.split(':').nth(1)?.parse::<i64>().ok()?;
-        let long = latlong::latlong_from_e7(long);
-
-        let line = lines.next()?;
-        if !line.starts_with('}') {
-            return None;
-        }
-
-        let line = lines.next()?;
-        if !line.starts_with("radius:") {
-            return None;
-        }
-        let radius = line.split(':').nth(1)?.parse::<i32>().ok()?;
-        Some(Uulev2Data {
+        Ok(Uulev2Data {
             role,
             producer,
             provenance,
@@ -188,4 +156,59 @@ impl Uulev2Data {
         })
     }
 
+    fn parse_int_line<T>(line: Option<&str>, field: &str) -> Result<T, Uulev2Error> where T: FromStr::<Err=std::num::ParseIntError> {
+        Uulev2Data::get_field_value(line, field)?.parse::<T>().map_err(|e| Uulev2Error::InvalidIntegerValue { source: e })
+    }
+
+    fn parse_lat_long(lines: &mut Lines) -> Result<(f64, f64), Uulev2Error> {
+        let line = lines.next().ok_or_else(|| Uulev2Error::UnexpectedEnd("latlng{".to_string()))?;
+        if line != "latlng{" {
+            return Err(Uulev2Error::UnexpectedLine{expected: "latlng{".to_string(), actual: line.to_string()});
+        }
+        let lat: f64 = latlong::latlong_from_e7(Uulev2Data::parse_int_line(lines.next(), "latitude_e7")?);
+        let long: f64 = latlong::latlong_from_e7(Uulev2Data::parse_int_line(lines.next(), "longitude_e7")?);
+        let line = lines.next().ok_or_else(|| Uulev2Error::UnexpectedEnd("}".to_string()))?;
+        if line != "}" {
+            return Err(Uulev2Error::UnexpectedLine{expected: "}".to_string(), actual: line.to_string()});
+        }
+
+        Ok((lat, long))
+    }
+
+    fn get_field_value<'a>(line: Option<&'a str>, field: &str) -> Result<&'a str, Uulev2Error> {
+        let line = line.ok_or_else(|| Uulev2Error::UnexpectedEnd(field.to_string()))?;
+        if !line.starts_with(field) {
+            return Err(Uulev2Error::UnexpectedLine{expected: field.to_string(), actual: line.to_string()});
+        }
+        line.split(':').nth(1).ok_or_else(|| Uulev2Error::MissingValue(field.to_owned()))
+    }
+}
+
+/// Uulev2Error is the error type for UULEv2 decoding
+#[derive(Clone, Debug, PartialEq, Error)]
+pub enum Uulev2Error {
+    /// Invalid prefix. UULEv2 strings must start with 'a+'. Received string is accessible as `error.0`
+    #[error("Invalid prefix. UULEv2 strings must start with 'a+'. Received: {0}")]
+    InvalidPrefix(String),
+    /// Invalid Base64-URL string. Underlying error is accessible as `error.source`
+    #[error("Invalid Base64-URL string. Underlying error: {source}")]
+    Base64DecodingError { source: base64::DecodeError },
+    /// Unexpected end of string while decoding. Expected line is accessible as `error.0`
+    #[error("Unexpected end of string, expected line {0}")]
+    UnexpectedEnd(String),
+    /// Unexpected line while decoding. Expected line is accessible as `error.expected` and actual line is accessible as `error.actual`
+    #[error("Unexpected line: {actual} - expected: {expected}")]
+    UnexpectedLine {
+        expected: String,
+        actual: String,
+    },
+    /// Missing value for field. Field name is accessible as `error.0`
+    #[error("Missing value for field {0}")]
+    MissingValue(String),
+    /// Invalid value while passing a supposed integer. Underlying error is accessible as `error.source`
+    #[error("Invalid integer value. Underlying error: {source}")]
+    InvalidIntegerValue { source: std::num::ParseIntError },
+    /// Invalid value while passing a supposed float. Underlying error is accessible as `error.source`
+    #[error("Invalid float value. Underlying error: {source}")]
+    InvalidFloatValue { source: std::num::ParseFloatError },
 }
